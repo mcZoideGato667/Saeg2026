@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>SAEG 2026 · Mickey em RA</title>
+    <meta name="theme-color" content="#e8452a">
+    <link rel="icon" href="saeg_logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <!-- model-viewer: prévia 3D e RA.
+         Android: WebXR (RA dentro do Chrome, via ARCore) vem primeiro porque o Scene Viewer do app Google
+         passou a fechar sozinho em alguns aparelhos (nov/2026).
+         iPhone/iPad: AR Quick Look com o arquivo USDZ (ios-src). -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+    <style>
+        /* Identidade visual SAEG 2026: gradiente arco-íris granulado + tipografia creme */
+        :root {
+            --cream: #f4f0de;
+            --ink: #1c1a24;
+            --blue: #3a4fd0;
+            --red: #f0302a;
+            --orange: #f57a1f;
+            --yellow: #f5dc1e;
+            --cyan: #3cc3e6;
+            --green: #8ccb3a;
+            --pink: #e6a9d6;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; }
+        body {
+            font-family: 'Archivo', system-ui, sans-serif;
+            color: var(--cream);
+            background: var(--orange);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* fundo: manchas de cor desfocadas que se movem devagar */
+        .bg { position: fixed; inset: 0; z-index: -2; overflow: hidden; background: var(--orange); }
+        .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .95; will-change: transform; }
+        .b1 { width: 75vmax; height: 75vmax; left: -35vmax; top: -10vmax; background: var(--blue); animation: drift1 22s ease-in-out infinite alternate; }
+        .b2 { width: 45vmax; height: 60vmax; left: -5vmax; top: 5vmax; background: var(--red); animation: drift2 18s ease-in-out infinite alternate; }
+        .b3 { width: 55vmax; height: 45vmax; left: 25vmax; top: -20vmax; background: var(--yellow); animation: drift3 20s ease-in-out infinite alternate; }
+        .b4 { width: 55vmax; height: 55vmax; right: -30vmax; top: -15vmax; background: var(--cyan); animation: drift1 24s ease-in-out infinite alternate-reverse; }
+        .b5 { width: 60vmax; height: 55vmax; right: -25vmax; bottom: -20vmax; background: var(--green); animation: drift2 26s ease-in-out infinite alternate-reverse; }
+        .b6 { width: 45vmax; height: 40vmax; left: 10vmax; bottom: -25vmax; background: var(--yellow); animation: drift3 21s ease-in-out infinite alternate-reverse; }
+        .b7 { width: 30vmax; height: 30vmax; left: 35vmax; bottom: -12vmax; background: var(--pink); animation: drift1 19s ease-in-out infinite alternate; }
+        @keyframes drift1 { to { transform: translate(8vmax, 6vmax) scale(1.08); } }
+        @keyframes drift2 { to { transform: translate(-6vmax, 9vmax) scale(.92); } }
+        @keyframes drift3 { to { transform: translate(7vmax, -7vmax) scale(1.1); } }
+        @media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
+
+        /* granulado (ruído SVG) por cima de tudo, como na arte */
+        .grain {
+            position: fixed; inset: -50%; z-index: -1; pointer-events: none; opacity: .38; mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1.6 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        main {
+            width: 100%; max-width: 460px; margin: 0 auto;
+            padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+        }
+        .top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .tag {
+            font-weight: 800; font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+            padding: 7px 12px; border: 2px solid var(--cream); border-radius: 999px;
+        }
+        .tag.solid { background: var(--cream); color: var(--ink); }
+
+        .logo { width: min(36vw, 170px); height: auto; margin-top: 4px; filter: drop-shadow(0 6px 24px rgba(40, 10, 60, .25)); }
+        h1 {
+            margin: 2px 0 0; font-weight: 900; font-size: clamp(26px, 7.4vw, 34px); line-height: 1.02;
+            letter-spacing: -.02em; text-transform: uppercase; text-shadow: 0 2px 18px rgba(40, 10, 60, .28);
+        }
+        .sub { margin: 0; font-weight: 500; font-size: 16px; line-height: 1.4; max-width: 30ch; text-shadow: 0 1px 12px rgba(40, 10, 60, .35); }
+
+        .stage {
+            position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 28px;
+            border: 2px solid rgba(244, 240, 222, .85);
+            background: rgba(244, 240, 222, .14);
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+            box-shadow: 0 18px 50px rgba(40, 10, 60, .22);
+            overflow: hidden;
+        }
+        model-viewer { width: 100%; height: 100%; --poster-color: transparent; background: transparent; }
+        .hint {
+            position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+            font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+            padding: 6px 10px; border-radius: 999px; background: rgba(28, 26, 36, .45); white-space: nowrap; pointer-events: none;
+        }
+
+        .ar-button {
+            display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%;
+            padding: 18px 24px; border: 0; border-radius: 999px; cursor: pointer;
+            background: var(--cream); color: var(--ink); text-decoration: none;
+            font-family: inherit; font-weight: 900; font-size: 20px; letter-spacing: .02em; text-transform: uppercase;
+            box-shadow: 0 10px 30px rgba(40, 10, 60, .28);
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .ar-button:active { transform: scale(.97); }
+        .ar-button:focus-visible, .alt:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+        .ar-button svg { width: 26px; height: 26px; flex: none; }
+        .alt { color: var(--cream); font-size: 14px; font-weight: 700; text-underline-offset: 3px; opacity: .92; }
+        #msg {
+            margin: 0; min-height: 1.4em; font-size: 14px; font-weight: 600; line-height: 1.4;
+            text-shadow: 0 1px 10px rgba(40, 10, 60, .45);
+        }
+        #msg:not(:empty) { padding: 10px 14px; border-radius: 16px; background: rgba(28, 26, 36, .55); text-shadow: none; }
+
+        footer { margin-top: auto; padding-top: 8px; font-size: 13px; font-weight: 700; letter-spacing: .04em; }
+        footer .sep { margin: 0 8px; opacity: .8; }
+        footer a { color: var(--cream); text-decoration: none; border-bottom: 2px solid var(--cream); padding-bottom: 1px; }
+    </style>
+</head>
+<body>
+    <div class="bg" aria-hidden="true">
+        <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+        <div class="blob b5"></div><div class="blob b6"></div><div class="blob b7"></div>
+    </div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <span class="tag">UFPR</span>
+            <span class="tag solid">Realidade aumentada</span>
+        </div>
+
+        <img class="logo" src="saeg_logo.png" alt="SAEG 2026">
+
+        <h1>O pincel mágico<br>no seu espaço</h1>
+
+        <div class="stage">
+            <model-viewer
+                id="mv"
+                alt="Mickey escrevendo com o pincel mágico"
+                src="EpicMickey_AR.glb?v=1"
+                ios-src="EpicMickey_AR.usdz?v=1"
+                autoplay
+                ar
+                ar-modes="webxr scene-viewer quick-look"
+                ar-placement="floor"
+                ar-scale="auto"
+                shadow-intensity="1"
+                camera-controls
+                camera-orbit="0deg 80deg auto"
+                touch-action="pan-y">
+                <!-- o botão padrão do model-viewer fica escondido; usamos o nosso abaixo -->
+                <button slot="ar-button" style="display:none"></button>
+            </model-viewer>
+            <span class="hint">Arraste para girar</span>
+        </div>
+
+        <a href="#" class="ar-button" onclick="openAR(); return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/>
+            </svg>
+            Visualizar em AR
+        </a>
+        <a href="#" class="alt" id="alt" onclick="openSceneViewer(); return false;">Não abriu? Tentar pelo Scene Viewer</a>
+        <p id="msg" role="status"></p>
+
+        <footer>
+            <a href="https://www.instagram.com/saegufpr/" target="_blank" rel="noopener">@saegufpr</a>
+            <span class="sep">·</span>
+            por <a href="https://www.instagram.com/bernardo.hille/" target="_blank" rel="noopener">@bernardo.hille</a>
+        </footer>
+    </main>
+
+  <script>
+    const MODEL = "EpicMickey_AR.glb?v=1";   // troque o v= a cada nova versão do modelo (evita cache do celular),
+                                             // aqui e nos atributos src e ios-src lá em cima
+    const TITLE = "SAEG 2026 - Mickey";
+    const mv = document.getElementById("mv");
+    const msg = document.getElementById("msg");
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isAndroid = /android/i.test(ua);
+    const isIOS = (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) ||
+                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);   // iPad com iPadOS 13+
+    if (isIOS) document.getElementById("alt").style.display = "none";
+
+    // Caminho principal: o próprio model-viewer abre a RA (WebXR no Chrome; Scene Viewer de reserva).
+    function openAR() {
+      msg.textContent = "";
+      if (isIOS) {
+        // AR Quick Look (USDZ). Precisa do Safari (ou outro navegador que suporte Quick Look) e iOS 13+.
+        if (mv.canActivateAR) {
+          mv.activateAR();
+        } else {
+          msg.textContent = "Abra este link no Safari para ver em RA (iPhone ou iPad com iOS 13 ou mais novo).";
+        }
+        return;
+      }
+      if (!isAndroid) {
+        msg.textContent = "A Realidade Aumentada funciona no celular: Android (Chrome) ou iPhone/iPad (Safari). Abra este link no celular.";
+        return;
+      }
+      if (mv.canActivateAR) {
+        mv.activateAR();
+      } else {
+        openSceneViewer();
+      }
+    }
+
+    // Caminho alternativo: intent direto para o Scene Viewer do Google Play Services for AR.
+    function openSceneViewer() {
+      const base = location.origin + location.pathname.replace(/\/[^\/]*$/, '/');
+      const params = "file=" + encodeURIComponent(base + MODEL) +
+                     "&mode=ar_preferred&title=" + encodeURIComponent(TITLE);
+      window.location.href =
+        "intent://arvr.google.com/scene-viewer/1.2?" + params +
+        "#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;" +
+        "S.browser_fallback_url=" + encodeURIComponent(location.href.split('#')[0] + "#ar-falhou") + ";end;";
+    }
+
+    mv.addEventListener("ar-status", (e) => {
+      if (e.detail.status === "failed") {
+        msg.textContent = "O celular não conseguiu abrir a RA. Atualize o \"Google Play Services for AR\" na Play Store e tente de novo.";
+      }
+    });
+    if (location.hash === "#ar-falhou") {
+      msg.textContent = "O Scene Viewer não abriu. Atualize o \"Google Play Services for AR\" e o app Google na Play Store.";
+    }
+  </script>
+
+</body>
+</html>
